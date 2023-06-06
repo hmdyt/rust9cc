@@ -23,5 +23,8 @@ cargo build
 
 try 0 0
 try 42 42
+try 3 "1+2"
+try 3 "5-2"
+try 3 "5-2+1-1"
 
 echo OK
