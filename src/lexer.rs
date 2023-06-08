@@ -7,8 +7,14 @@ pub enum Token {
     Minus,
     Multiply,
     Divide,
-    LeftParen,  // "("
-    RightParen, // ")"
+    LeftParen,          // "("
+    RightParen,         // ")"
+    Equal,              // "=="
+    NotEqual,           // "!="
+    LessThan,           // "<"
+    LessThanOrEqual,    // "<="
+    GreaterThan,        // ">"
+    GreaterThanOrEqual, // ">="
 }
 
 pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> {
@@ -32,6 +38,42 @@ pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> 
             Some('/') => tokens.push(Token::Divide),
             Some('(') => tokens.push(Token::LeftParen),
             Some(')') => tokens.push(Token::RightParen),
+            Some('=') => match iter.peek() {
+                Some('=') => {
+                    iter.next();
+                    tokens.push(Token::Equal);
+                }
+                Some(other) => {
+                    panic!("予期しない文字です: ={}", other);
+                }
+                _ => panic!("予期しない文字です: ="),
+            },
+            Some('!') => match iter.peek() {
+                Some('=') => {
+                    iter.next();
+                    tokens.push(Token::NotEqual);
+                }
+                Some(other) => {
+                    panic!("予期しない文字です: !{}", other);
+                }
+                _ => panic!("予期しない文字です: !"),
+            },
+            Some('<') => {
+                if let Some('=') = iter.peek() {
+                    iter.next();
+                    tokens.push(Token::LessThanOrEqual);
+                } else {
+                    tokens.push(Token::LessThan);
+                }
+            }
+            Some('>') => {
+                if let Some('=') = iter.peek() {
+                    iter.next();
+                    tokens.push(Token::GreaterThanOrEqual);
+                } else {
+                    tokens.push(Token::GreaterThan);
+                }
+            }
             Some(other) => panic!("予期しない文字です: {}", other),
             None => break,
         }
@@ -164,6 +206,25 @@ mod tests {
                     Token::RightParen,
                     Token::Divide,
                     Token::Num(5),
+                ],
+            },
+            Test {
+                name: "比較演算子",
+                input: "1 < 2 <= 3 > 4 >= 5 == 6 != 7",
+                expected: vec![
+                    Token::Num(1),
+                    Token::LessThan,
+                    Token::Num(2),
+                    Token::LessThanOrEqual,
+                    Token::Num(3),
+                    Token::GreaterThan,
+                    Token::Num(4),
+                    Token::GreaterThanOrEqual,
+                    Token::Num(5),
+                    Token::Equal,
+                    Token::Num(6),
+                    Token::NotEqual,
+                    Token::Num(7),
                 ],
             },
         ];

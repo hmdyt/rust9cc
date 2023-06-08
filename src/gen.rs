@@ -63,5 +63,49 @@ pub fn from_node<W: Write>(w: &mut W, node: Node) -> io::Result<()> {
             writeln!(w, "  push rax")?;
             Ok(())
         }
+        Node::Eq { l, r } => {
+            from_node(w, *l)?;
+            from_node(w, *r)?;
+            writeln!(w, "  pop rdi")?;
+            writeln!(w, "  pop rax")?;
+            writeln!(w, "  cmp rax, rdi")?;
+            writeln!(w, "  sete al")?;
+            writeln!(w, "  movzb rax, al")?;
+            writeln!(w, "  push rax")?;
+            Ok(())
+        },
+        Node::Ne { l, r } => {
+            from_node(w, *l)?;
+            from_node(w, *r)?;
+            writeln!(w, "  pop rdi")?;
+            writeln!(w, "  pop rax")?;
+            writeln!(w, "  cmp rax, rdi")?;
+            writeln!(w, "  setne al")?;
+            writeln!(w, "  movzb rax, al")?;
+            writeln!(w, "  push rax")?;
+            Ok(())
+        },
+        Node::Lt { l, r } => {
+            from_node(w, *l)?;
+            from_node(w, *r)?;
+            writeln!(w, "  pop rdi")?;
+            writeln!(w, "  pop rax")?;
+            writeln!(w, "  cmp rax, rdi")?;
+            writeln!(w, "  setl al")?;
+            writeln!(w, "  movzb rax, al")?;
+            writeln!(w, "  push rax")?;
+            Ok(())
+        },
+        Node::Le { l, r } => {
+            from_node(w, *l)?;
+            from_node(w, *r)?;
+            writeln!(w, "  pop rdi")?;
+            writeln!(w, "  pop rax")?;
+            writeln!(w, "  cmp rax, rdi")?;
+            writeln!(w, "  setle al")?;
+            writeln!(w, "  movzb rax, al")?;
+            writeln!(w, "  push rax")?;
+            Ok(())
+        },
     }
 }
