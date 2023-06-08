@@ -46,25 +46,44 @@ pub fn expr<'a, T: Iterator<Item = &'a Token>>(tokens: &mut Peekable<T>) -> Opti
     Some(node)
 }
 
-// mul = primary ("*" primary | "/" primary)*
+// mul = unary ("*" unary | "/" unary)*
 fn mul<'a, T: Iterator<Item = &'a Token>>(tokens: &mut Peekable<T>) -> Option<Box<Node>> {
-    let mut node = primary(tokens)?;
+    let mut node = unary(tokens)?;
     loop {
         match tokens.peek() {
             Some(Token::Multiply) => {
                 tokens.next();
-                let r = primary(tokens)?;
+                let r = unary(tokens)?;
                 node = Box::new(Node::Mul { l: node, r });
             }
             Some(Token::Divide) => {
                 tokens.next();
-                let r = primary(tokens)?;
+                let r = unary(tokens)?;
                 node = Box::new(Node::Div { l: node, r });
             }
             _ => break,
         }
     }
     Some(node)
+}
+
+// unary   = ("+" | "-")? primary
+fn unary<'a, T: Iterator<Item = &'a Token>>(tokens: &mut Peekable<T>) -> Option<Box<Node>> {
+    match tokens.peek() {
+        Some(Token::Plus) => {
+            tokens.next();
+            primary(tokens)
+        }
+        Some(Token::Minus) => {
+            tokens.next();
+            let node = primary(tokens)?;
+            Some(Box::new(Node::Sub {
+                l: Box::new(Node::Num(0)),
+                r: node,
+            }))
+        }
+        _ => primary(tokens),
+    }
 }
 
 // primary = num | "(" expr ")"
@@ -146,6 +165,16 @@ mod tests {
                     Token::Num(1),
                 ],
                 expected: "(((1 + 2) * (3 - 4)) + 1)",
+            },
+            Test {
+                name: "-1 + 2",
+                input: vec![Token::Minus, Token::Num(1), Token::Plus, Token::Num(2)],
+                expected: "((0 - 1) + 2)",
+            },
+            Test {
+                name: "+2 -1",
+                input: vec![Token::Plus, Token::Num(2), Token::Minus, Token::Num(1)],
+                expected: "(2 - 1)",
             },
         ];
 
