@@ -1,6 +1,6 @@
 use std::{env, io::Result};
 
-use rust9cc::token::{expect_number, tokenize, Token};
+use rust9cc::lexer::{expect_number, tokenize, Token};
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
