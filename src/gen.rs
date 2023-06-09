@@ -9,10 +9,29 @@ pub fn prefix<W: Write>(w: &mut W) -> io::Result<()> {
     Ok(())
 }
 
-pub fn suffix<W: Write>(w: &mut W) -> io::Result<()> {
-    writeln!(w, "  pop rax")?;
+pub fn prologue<W: Write>(w: &mut W) -> io::Result<()> {
+    writeln!(w, "  push rbp")?;
+    writeln!(w, "  mov rbp, rsp")?;
+    writeln!(w, "  sub rsp, 208")?;
+    Ok(())
+}
+
+pub fn epilogue<W: Write>(w: &mut W) -> io::Result<()> {
+    writeln!(w, "  mov rsp, rbp")?;
+    writeln!(w, "  pop rbp")?;
     writeln!(w, "  ret")?;
     Ok(())
+}
+
+fn lval<W: Write>(w: &mut W, node: Node) -> io::Result<()> {
+    if let Node::Lvar { ident: _, offset } = node {
+        writeln!(w, "  mov rax, rbp")?;
+        writeln!(w, "  sub rax, {}", offset)?;
+        writeln!(w, "  push rax")?;
+        Ok(())
+    } else {
+        panic!("代入の左辺値が変数ではありません");
+    }
 }
 
 pub fn from_node<W: Write>(w: &mut W, node: Node) -> io::Result<()> {
@@ -105,6 +124,22 @@ pub fn from_node<W: Write>(w: &mut W, node: Node) -> io::Result<()> {
             writeln!(w, "  setle al")?;
             writeln!(w, "  movzb rax, al")?;
             writeln!(w, "  push rax")?;
+            Ok(())
+        },
+        Node::Lvar { ident: _, offset: _ } => {
+            lval(w, node)?;
+            writeln!(w, "  pop rax")?;
+            writeln!(w, "  mov rax, [rax]")?;
+            writeln!(w, "  push rax")?;
+            Ok(())
+        },
+        Node::Assign { l, r } => {
+            lval(w, *l)?;
+            from_node(w, *r)?;
+            writeln!(w, "  pop rdi")?;
+            writeln!(w, "  pop rax")?;
+            writeln!(w, "  mov [rax], rdi")?;
+            writeln!(w, "  push rdi")?;
             Ok(())
         },
     }

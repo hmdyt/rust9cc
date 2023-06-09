@@ -1,5 +1,6 @@
 use std::env;
 use std::io;
+use std::io::Write;
 
 use rust9cc::{ast, gen, lexer};
 
@@ -16,14 +17,18 @@ fn main() -> io::Result<()> {
     let mut token_iter = tokens.iter().peekable();
 
     // ast
-    let node = ast::expr(&mut token_iter).unwrap();
+    let nodes = ast::program(&mut token_iter).unwrap();
 
     // gen assembly code to stdout
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     gen::prefix(&mut stdout)?;
-    gen::from_node(&mut stdout, *node)?;
-    gen::suffix(&mut stdout)?;
+    gen::prologue(&mut stdout)?;
+    for node in nodes {
+        gen::from_node(&mut stdout, *node)?;
+        writeln!(&mut stdout, "  pop rax")?;
+    }
+    gen::epilogue(&mut stdout)?;
 
     Ok(())
 }

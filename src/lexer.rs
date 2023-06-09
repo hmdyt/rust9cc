@@ -3,6 +3,7 @@ use std::iter::Peekable;
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Num(u32),
+    Identifier(char),
     Plus,
     Minus,
     Multiply,
@@ -15,6 +16,8 @@ pub enum Token {
     LessThanOrEqual,    // "<="
     GreaterThan,        // ">"
     GreaterThanOrEqual, // ">="
+    Assign,             // "="
+    Semicolon,          // ";"
 }
 
 pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> {
@@ -38,15 +41,12 @@ pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> 
             Some('/') => tokens.push(Token::Divide),
             Some('(') => tokens.push(Token::LeftParen),
             Some(')') => tokens.push(Token::RightParen),
-            Some('=') => match iter.peek() {
-                Some('=') => {
-                    iter.next();
-                    tokens.push(Token::Equal);
-                }
-                Some(other) => {
-                    panic!("予期しない文字です: ={}", other);
-                }
-                _ => panic!("予期しない文字です: ="),
+            Some(';') => tokens.push(Token::Semicolon),
+            Some('=') => if let Some('=') = iter.peek() {
+                iter.next();
+                tokens.push(Token::Equal);
+            } else {
+                tokens.push(Token::Assign);
             },
             Some('!') => match iter.peek() {
                 Some('=') => {
@@ -73,6 +73,9 @@ pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> 
                 } else {
                     tokens.push(Token::GreaterThan);
                 }
+            }
+            Some(alphabet) if 'a' <= alphabet && alphabet <= 'z' => {
+                tokens.push(Token::Identifier(alphabet));
             }
             Some(other) => panic!("予期しない文字です: {}", other),
             None => break,
@@ -225,6 +228,17 @@ mod tests {
                     Token::Num(6),
                     Token::NotEqual,
                     Token::Num(7),
+                ],
+            },
+            Test {
+                name: "変数",
+                input: "a + b - c",
+                expected: vec![
+                    Token::Identifier('a'),
+                    Token::Plus,
+                    Token::Identifier('b'),
+                    Token::Minus,
+                    Token::Identifier('c'),
                 ],
             },
         ];

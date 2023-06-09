@@ -7,6 +7,8 @@ use crate::lexer::Token;
 #[derive(Debug, PartialEq)]
 pub enum Node {
     Num(u32),
+    Lvar{ident: char, offset: usize},
+    Assign { l: Box<Node>, r: Box<Node> },
     Add { l: Box<Node>, r: Box<Node> },
     Sub { l: Box<Node>, r: Box<Node> },
     Mul { l: Box<Node>, r: Box<Node> },
@@ -21,6 +23,8 @@ impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Node::Num(n) => write!(f, "{}", n),
+            Node::Lvar{ident, offset} => write!(f, "{}[rbp-{}]", ident, offset),
+            Node::Assign { l, r } => write!(f, "({} = {})", l, r),
             Node::Add { l, r } => write!(f, "({} + {})", l, r),
             Node::Sub { l, r } => write!(f, "({} - {})", l, r),
             Node::Mul { l, r } => write!(f, "({} * {})", l, r),
@@ -33,9 +37,37 @@ impl fmt::Display for Node {
     }
 }
 
-// expr = equality
-pub fn expr<'a, T: Iterator<Item = &'a Token>>(tokens: &mut Peekable<T>) -> Option<Box<Node>> {
-    equality(tokens)
+// program = stmt*
+pub fn program<'a, T: Iterator<Item = &'a Token>>(tokens: &mut Peekable<T>) -> Option<Vec<Box<Node>>> {
+    let mut nodes = Vec::new();
+    while let Some(node) = stmt(tokens) {
+        nodes.push(node);
+    }
+    Some(nodes)
+}
+
+// stmt = expr ";"
+fn stmt<'a, T: Iterator<Item = &'a Token>>(tokens: &mut Peekable<T>) -> Option<Box<Node>> {
+    let node = expr(tokens)?;
+    match tokens.next() {
+        Some(Token::Semicolon) => Some(node),
+        _ => None,
+    }
+}
+
+// expr = assign
+fn expr<'a, T: Iterator<Item = &'a Token>>(tokens: &mut Peekable<T>) -> Option<Box<Node>> {
+    assign(tokens)
+}
+
+// assign = equality ("=" assign)?
+fn assign<'a, T: Iterator<Item = &'a Token>>(tokens: &mut Peekable<T>) -> Option<Box<Node>>{
+    let mut node = equality(tokens)?;
+    if let Some(Token::Assign) = tokens.peek() {
+        tokens.next();
+        node = Box::new(Node::Assign { l: node, r: assign(tokens)? });
+    }
+    Some(node)
 }
 
 // equality = relational ("==" relational | "!=" relational)*
@@ -150,7 +182,7 @@ fn unary<'a, T: Iterator<Item = &'a Token>>(tokens: &mut Peekable<T>) -> Option<
     }
 }
 
-// primary = num | "(" expr ")"
+// primary = num | ident | "(" expr ")"
 fn primary<'a, T: Iterator<Item = &'a Token>>(tokens: &mut Peekable<T>) -> Option<Box<Node>> {
     match tokens.peek() {
         // 次のトークンが"("なら、"(" expr ")"のはず
@@ -160,10 +192,17 @@ fn primary<'a, T: Iterator<Item = &'a Token>>(tokens: &mut Peekable<T>) -> Optio
             lexer::consume(tokens, Token::RightParen)?;
             Some(node)
         }
-        // そうでなければ数値のはず
+        // そうでなければ数値or識別子
         Some(Token::Num(n)) => {
             tokens.next();
             Some(Box::new(Node::Num(*n)))
+        }
+        Some(Token::Identifier(c)) => {
+            tokens.next();
+            Some(Box::new(Node::Lvar {
+                ident: *c, 
+                offset: (*c as usize - 'a' as usize + 1) * 8,
+            }))
         }
         _ => None,
     }
@@ -270,7 +309,40 @@ mod tests {
                 name: "1 >= 2",
                 input: vec![Token::Num(1), Token::GreaterThanOrEqual, Token::Num(2)],
                 expected :"(2 <= 1)"
-            }
+            },
+            Test {
+                name: "a = 1",
+                input: vec![Token::Identifier('a'), Token::Assign, Token::Num(1)],
+                expected: "(a[rbp-8] = 1)",
+            },
+            Test {
+                name: "b = 1 + 2",
+                input: vec![
+                    Token::Identifier('b'),
+                    Token::Assign,
+                    Token::Num(1),
+                    Token::Plus,
+                    Token::Num(2),
+                ],
+                expected: "(b[rbp-16] = (1 + 2))",
+            },
+            Test {
+                name: "c + d + 1 = 1 + 2 * 3",
+                input: vec![
+                    Token::Identifier('c'),
+                    Token::Plus,
+                    Token::Identifier('d'),
+                    Token::Plus,
+                    Token::Num(1),
+                    Token::Assign,
+                    Token::Num(1),
+                    Token::Plus,
+                    Token::Num(2),
+                    Token::Multiply,
+                    Token::Num(3),
+                ],
+                expected: "(((c[rbp-24] + d[rbp-32]) + 1) = (1 + (2 * 3)))",
+            },
         ];
 
         for t in tests {
@@ -282,5 +354,18 @@ mod tests {
                 t.name,
             );
         }
+    }
+
+    #[test]
+    fn test_program() {
+        let mut s = "a = 1; b = 2; c = a + b;".chars().peekable();
+        let tokens = crate::lexer::tokenize(&mut s);
+        let mut token_iter = tokens.iter().peekable();
+        let nodes = program(&mut token_iter).unwrap();
+        
+        assert_eq!(nodes.len(), 3);
+        assert_eq!(format!("{}", nodes[0]), "(a[rbp-8] = 1)");
+        assert_eq!(format!("{}", nodes[1]), "(b[rbp-16] = 2)");
+        assert_eq!(format!("{}", nodes[2]), "(c[rbp-24] = (a[rbp-8] + b[rbp-16]))");
     }
 }
