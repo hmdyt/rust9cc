@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use crate::ast::Node;
+use crate::ast::node::Node;
 
 pub fn prefix<W: Write>(w: &mut W) -> io::Result<()> {
     writeln!(w, ".intel_syntax noprefix")?;

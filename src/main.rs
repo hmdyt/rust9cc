@@ -17,7 +17,7 @@ fn main() -> io::Result<()> {
     let mut token_iter = tokens.iter();
 
     // ast
-    let mut parser = ast::Parser::new(&mut token_iter);
+    let mut parser = ast::parser::Parser::new(&mut token_iter);
     let nodes = parser.parse().unwrap();
 
     // gen assembly code to stdout
