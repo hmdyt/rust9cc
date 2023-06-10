@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use crate::ast::node::{Node, Nodes};
+use crate::ast::node::{LocalVar, Node, Nodes};
 
 pub trait CodeGen<W: Write> {
     fn prefix(&mut self) -> io::Result<()>;
@@ -50,7 +50,7 @@ impl<W: Write> AsmCodeGen<W> {
     }
 
     fn lval(&mut self, node: Node) -> io::Result<()> {
-        if let Node::Lvar { ident: _, offset } = node {
+        if let Node::Lvar(LocalVar { ident: _, offset }) = node {
             writeln!(self.w, "  mov rax, rbp")?;
             writeln!(self.w, "  sub rax, {}", offset)?;
             writeln!(self.w, "  push rax")?;
@@ -152,10 +152,7 @@ impl<W: Write> AsmCodeGen<W> {
                 writeln!(self.w, "  push rax")?;
                 Ok(())
             }
-            Node::Lvar {
-                ident: _,
-                offset: _,
-            } => {
+            Node::Lvar(_) => {
                 self.lval(node)?;
                 writeln!(self.w, "  pop rax")?;
                 writeln!(self.w, "  mov rax, [rax]")?;

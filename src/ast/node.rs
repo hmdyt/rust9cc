@@ -1,9 +1,15 @@
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
+pub struct LocalVar {
+    pub offset: usize,
+    pub ident: String,
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Node {
     Num(u32),
-    Lvar { ident: char, offset: usize },
+    Lvar(LocalVar),
     Assign { l: Box<Node>, r: Box<Node> },
     Add { l: Box<Node>, r: Box<Node> },
     Sub { l: Box<Node>, r: Box<Node> },
@@ -19,7 +25,7 @@ impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Node::Num(n) => write!(f, "{}", n),
-            Node::Lvar { ident, offset } => write!(f, "{}[rbp-{}]", ident, offset),
+            Node::Lvar(LocalVar { ident, offset }) => write!(f, "{}[rbp-{}]", ident, offset),
             Node::Assign { l, r } => write!(f, "({} = {})", l, r),
             Node::Add { l, r } => write!(f, "({} + {})", l, r),
             Node::Sub { l, r } => write!(f, "({} - {})", l, r),

@@ -2,7 +2,7 @@ use std::iter::Peekable;
 
 use thiserror::Error;
 
-use crate::ast::node::{Node, Nodes};
+use crate::ast::node::{Node, Nodes, LocalVar};
 use crate::lexer::Token;
 
 #[derive(Debug, Error, PartialEq)]
@@ -226,10 +226,10 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
             }
             Token::Identifier(c) => {
                 self.consume(Token::Identifier(c))?;
-                Ok(Box::new(Node::Lvar {
-                    ident: c,
+                Ok(Box::new(Node::Lvar(LocalVar {
+                    ident: c.to_string(),
                     offset: (c as usize - 'a' as usize + 1) * 8,
-                }))
+                })))
             }
             Token::LeftParen => {
                 self.consume(Token::LeftParen)?;
