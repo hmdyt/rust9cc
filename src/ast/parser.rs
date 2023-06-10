@@ -2,8 +2,8 @@ use std::iter::Peekable;
 
 use thiserror::Error;
 
-use crate::lexer::Token;
 use crate::ast::node::{Node, Nodes};
+use crate::lexer::Token;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum ParserError {
@@ -255,35 +255,35 @@ mod tests {
     fn test_parser() {
         struct Test {
             success: bool,
-            name : &'static str,
+            name: &'static str,
             input: &'static str,
             expected: Option<&'static str>,
             expected_error: Option<ParserError>,
         }
 
         let tests = vec![
-            Test{
+            Test {
                 success: true,
                 name: "add",
                 input: "1+2;",
                 expected: Some("(1 + 2); "),
                 expected_error: None,
             },
-            Test{
+            Test {
                 success: true,
                 name: "sub",
                 input: "1-2;",
                 expected: Some("(1 - 2); "),
                 expected_error: None,
             },
-            Test{
+            Test {
                 success: true,
                 name: "mul",
                 input: "1*2;",
                 expected: Some("(1 * 2); "),
                 expected_error: None,
             },
-            Test{
+            Test {
                 success: true,
                 name: "div",
                 input: "1/2;",
@@ -372,7 +372,7 @@ mod tests {
                     expected: vec![Token::Num(0), Token::Identifier('a'), Token::LeftParen],
                     actual: vec![Token::EOF],
                 }),
-            }
+            },
         ];
 
         for t in tests {

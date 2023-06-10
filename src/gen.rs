@@ -1,149 +1,176 @@
 use std::io::{self, Write};
 
-use crate::ast::node::Node;
+use crate::ast::node::{Node, Nodes};
 
-pub fn prefix<W: Write>(w: &mut W) -> io::Result<()> {
-    writeln!(w, ".intel_syntax noprefix")?;
-    writeln!(w, ".globl main")?;
-    writeln!(w, "main:")?;
-    Ok(())
+pub trait CodeGen<W: Write> {
+    fn prefix(&mut self) -> io::Result<()>;
+    fn prologue(&mut self) -> io::Result<()>;
+    fn gen_from_nodes(&mut self, nodes: Nodes) -> io::Result<()>;
+    fn epilogue(&mut self) -> io::Result<()>;
 }
 
-pub fn prologue<W: Write>(w: &mut W) -> io::Result<()> {
-    writeln!(w, "  push rbp")?;
-    writeln!(w, "  mov rbp, rsp")?;
-    writeln!(w, "  sub rsp, 208")?;
-    Ok(())
+pub struct AsmCodeGen<W: Write> {
+    w: W,
 }
 
-pub fn epilogue<W: Write>(w: &mut W) -> io::Result<()> {
-    writeln!(w, "  mov rsp, rbp")?;
-    writeln!(w, "  pop rbp")?;
-    writeln!(w, "  ret")?;
-    Ok(())
-}
-
-fn lval<W: Write>(w: &mut W, node: Node) -> io::Result<()> {
-    if let Node::Lvar { ident: _, offset } = node {
-        writeln!(w, "  mov rax, rbp")?;
-        writeln!(w, "  sub rax, {}", offset)?;
-        writeln!(w, "  push rax")?;
+impl<W: Write> CodeGen<W> for AsmCodeGen<W> {
+    fn prefix(&mut self) -> io::Result<()> {
+        writeln!(self.w, ".intel_syntax noprefix")?;
+        writeln!(self.w, ".globl main")?;
+        writeln!(self.w, "main:")?;
         Ok(())
-    } else {
-        panic!("代入の左辺値が変数ではありません");
+    }
+
+    fn prologue(&mut self) -> io::Result<()> {
+        writeln!(self.w, "  push rbp")?;
+        writeln!(self.w, "  mov rbp, rsp")?;
+        writeln!(self.w, "  sub rsp, 208")?;
+        Ok(())
+    }
+
+    fn gen_from_nodes(&mut self, nodes: Nodes) -> io::Result<()> {
+        for node in nodes.0 {
+            self.from_node(*node)?;
+            writeln!(self.w, "  pop rax")?;
+        }
+        Ok(())
+    }
+
+    fn epilogue(&mut self) -> io::Result<()> {
+        writeln!(self.w, "  mov rsp, rbp")?;
+        writeln!(self.w, "  pop rbp")?;
+        writeln!(self.w, "  ret")?;
+        Ok(())
     }
 }
 
-pub fn from_node<W: Write>(w: &mut W, node: Node) -> io::Result<()> {
-    if let Node::Num(n) = node {
-        writeln!(w, "  push {}", n)?;
-        return Ok(());
+impl<W: Write> AsmCodeGen<W> {
+    pub fn new(w: W) -> Self {
+        Self { w }
     }
 
-    match node {
-        Node::Num(n) => {
-            writeln!(w, "  push {}", n)?;
+    fn lval(&mut self, node: Node) -> io::Result<()> {
+        if let Node::Lvar { ident: _, offset } = node {
+            writeln!(self.w, "  mov rax, rbp")?;
+            writeln!(self.w, "  sub rax, {}", offset)?;
+            writeln!(self.w, "  push rax")?;
             Ok(())
+        } else {
+            panic!("代入の左辺値が変数ではありません");
         }
-        Node::Add { l, r } => {
-            from_node(w, *l)?;
-            from_node(w, *r)?;
-            writeln!(w, "  pop rdi")?;
-            writeln!(w, "  pop rax")?;
-            writeln!(w, "  add rax, rdi")?;
-            writeln!(w, "  push rax")?;
-            Ok(())
+    }
+
+    fn from_node(&mut self, node: Node) -> io::Result<()> {
+        if let Node::Num(n) = node {
+            writeln!(self.w, "  push {}", n)?;
+            return Ok(());
         }
-        Node::Sub { l, r } => {
-            from_node(w, *l)?;
-            from_node(w, *r)?;
-            writeln!(w, "  pop rdi")?;
-            writeln!(w, "  pop rax")?;
-            writeln!(w, "  sub rax, rdi")?;
-            writeln!(w, "  push rax")?;
-            Ok(())
-        }
-        Node::Mul { l, r } => {
-            from_node(w, *l)?;
-            from_node(w, *r)?;
-            writeln!(w, "  pop rdi")?;
-            writeln!(w, "  pop rax")?;
-            writeln!(w, "  imul rax, rdi")?;
-            writeln!(w, "  push rax")?;
-            Ok(())
-        }
-        Node::Div { l, r } => {
-            from_node(w, *l)?;
-            from_node(w, *r)?;
-            writeln!(w, "  pop rdi")?;
-            writeln!(w, "  pop rax")?;
-            writeln!(w, "  cqo")?;
-            writeln!(w, "  idiv rdi")?;
-            writeln!(w, "  push rax")?;
-            Ok(())
-        }
-        Node::Eq { l, r } => {
-            from_node(w, *l)?;
-            from_node(w, *r)?;
-            writeln!(w, "  pop rdi")?;
-            writeln!(w, "  pop rax")?;
-            writeln!(w, "  cmp rax, rdi")?;
-            writeln!(w, "  sete al")?;
-            writeln!(w, "  movzb rax, al")?;
-            writeln!(w, "  push rax")?;
-            Ok(())
-        }
-        Node::Ne { l, r } => {
-            from_node(w, *l)?;
-            from_node(w, *r)?;
-            writeln!(w, "  pop rdi")?;
-            writeln!(w, "  pop rax")?;
-            writeln!(w, "  cmp rax, rdi")?;
-            writeln!(w, "  setne al")?;
-            writeln!(w, "  movzb rax, al")?;
-            writeln!(w, "  push rax")?;
-            Ok(())
-        }
-        Node::Lt { l, r } => {
-            from_node(w, *l)?;
-            from_node(w, *r)?;
-            writeln!(w, "  pop rdi")?;
-            writeln!(w, "  pop rax")?;
-            writeln!(w, "  cmp rax, rdi")?;
-            writeln!(w, "  setl al")?;
-            writeln!(w, "  movzb rax, al")?;
-            writeln!(w, "  push rax")?;
-            Ok(())
-        }
-        Node::Le { l, r } => {
-            from_node(w, *l)?;
-            from_node(w, *r)?;
-            writeln!(w, "  pop rdi")?;
-            writeln!(w, "  pop rax")?;
-            writeln!(w, "  cmp rax, rdi")?;
-            writeln!(w, "  setle al")?;
-            writeln!(w, "  movzb rax, al")?;
-            writeln!(w, "  push rax")?;
-            Ok(())
-        }
-        Node::Lvar {
-            ident: _,
-            offset: _,
-        } => {
-            lval(w, node)?;
-            writeln!(w, "  pop rax")?;
-            writeln!(w, "  mov rax, [rax]")?;
-            writeln!(w, "  push rax")?;
-            Ok(())
-        }
-        Node::Assign { l, r } => {
-            lval(w, *l)?;
-            from_node(w, *r)?;
-            writeln!(w, "  pop rdi")?;
-            writeln!(w, "  pop rax")?;
-            writeln!(w, "  mov [rax], rdi")?;
-            writeln!(w, "  push rdi")?;
-            Ok(())
+
+        match node {
+            Node::Num(n) => {
+                writeln!(self.w, "  push {}", n)?;
+                Ok(())
+            }
+            Node::Add { l, r } => {
+                self.from_node(*l)?;
+                self.from_node(*r)?;
+                writeln!(self.w, "  pop rdi")?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  add rax, rdi")?;
+                writeln!(self.w, "  push rax")?;
+                Ok(())
+            }
+            Node::Sub { l, r } => {
+                self.from_node(*l)?;
+                self.from_node(*r)?;
+                writeln!(self.w, "  pop rdi")?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  sub rax, rdi")?;
+                writeln!(self.w, "  push rax")?;
+                Ok(())
+            }
+            Node::Mul { l, r } => {
+                self.from_node(*l)?;
+                self.from_node(*r)?;
+                writeln!(self.w, "  pop rdi")?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  imul rax, rdi")?;
+                writeln!(self.w, "  push rax")?;
+                Ok(())
+            }
+            Node::Div { l, r } => {
+                self.from_node(*l)?;
+                self.from_node(*r)?;
+                writeln!(self.w, "  pop rdi")?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  cqo")?;
+                writeln!(self.w, "  idiv rdi")?;
+                writeln!(self.w, "  push rax")?;
+                Ok(())
+            }
+            Node::Eq { l, r } => {
+                self.from_node(*l)?;
+                self.from_node(*r)?;
+                writeln!(self.w, "  pop rdi")?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  cmp rax, rdi")?;
+                writeln!(self.w, "  sete al")?;
+                writeln!(self.w, "  movzb rax, al")?;
+                writeln!(self.w, "  push rax")?;
+                Ok(())
+            }
+            Node::Ne { l, r } => {
+                self.from_node(*l)?;
+                self.from_node(*r)?;
+                writeln!(self.w, "  pop rdi")?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  cmp rax, rdi")?;
+                writeln!(self.w, "  setne al")?;
+                writeln!(self.w, "  movzb rax, al")?;
+                writeln!(self.w, "  push rax")?;
+                Ok(())
+            }
+            Node::Lt { l, r } => {
+                self.from_node(*l)?;
+                self.from_node(*r)?;
+                writeln!(self.w, "  pop rdi")?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  cmp rax, rdi")?;
+                writeln!(self.w, "  setl al")?;
+                writeln!(self.w, "  movzb rax, al")?;
+                writeln!(self.w, "  push rax")?;
+                Ok(())
+            }
+            Node::Le { l, r } => {
+                self.from_node(*l)?;
+                self.from_node(*r)?;
+                writeln!(self.w, "  pop rdi")?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  cmp rax, rdi")?;
+                writeln!(self.w, "  setle al")?;
+                writeln!(self.w, "  movzb rax, al")?;
+                writeln!(self.w, "  push rax")?;
+                Ok(())
+            }
+            Node::Lvar {
+                ident: _,
+                offset: _,
+            } => {
+                self.lval(node)?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  mov rax, [rax]")?;
+                writeln!(self.w, "  push rax")?;
+                Ok(())
+            }
+            Node::Assign { l, r } => {
+                self.lval(*l)?;
+                self.from_node(*r)?;
+                writeln!(self.w, "  pop rdi")?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  mov [rax], rdi")?;
+                writeln!(self.w, "  push rdi")?;
+                Ok(())
+            }
         }
     }
 }

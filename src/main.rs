@@ -1,7 +1,7 @@
 use std::env;
 use std::io;
-use std::io::Write;
 
+use rust9cc::gen::CodeGen;
 use rust9cc::{ast, gen, lexer};
 
 fn main() -> io::Result<()> {
@@ -23,13 +23,12 @@ fn main() -> io::Result<()> {
     // gen assembly code to stdout
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
-    gen::prefix(&mut stdout)?;
-    gen::prologue(&mut stdout)?;
-    for node in nodes.0 {
-        gen::from_node(&mut stdout, *node)?;
-        writeln!(&mut stdout, "  pop rax")?;
-    }
-    gen::epilogue(&mut stdout)?;
+    let mut gen = gen::AsmCodeGen::new(&mut stdout);
+
+    gen.prefix()?;
+    gen.prologue()?;
+    gen.gen_from_nodes(nodes)?;
+    gen.epilogue()?;
 
     Ok(())
 }
