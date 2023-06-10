@@ -14,17 +14,18 @@ fn main() -> io::Result<()> {
 
     // tokenize
     let tokens = lexer::tokenize(&mut c);
-    let mut token_iter = tokens.iter().peekable();
+    let mut token_iter = tokens.iter();
 
     // ast
-    let nodes = ast::program(&mut token_iter).unwrap();
+    let mut parser = ast::Parser::new(&mut token_iter);
+    let nodes = parser.parse().unwrap();
 
     // gen assembly code to stdout
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     gen::prefix(&mut stdout)?;
     gen::prologue(&mut stdout)?;
-    for node in nodes {
+    for node in nodes.0 {
         gen::from_node(&mut stdout, *node)?;
         writeln!(&mut stdout, "  pop rax")?;
     }

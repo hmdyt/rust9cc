@@ -92,7 +92,7 @@ pub fn from_node<W: Write>(w: &mut W, node: Node) -> io::Result<()> {
             writeln!(w, "  movzb rax, al")?;
             writeln!(w, "  push rax")?;
             Ok(())
-        },
+        }
         Node::Ne { l, r } => {
             from_node(w, *l)?;
             from_node(w, *r)?;
@@ -103,7 +103,7 @@ pub fn from_node<W: Write>(w: &mut W, node: Node) -> io::Result<()> {
             writeln!(w, "  movzb rax, al")?;
             writeln!(w, "  push rax")?;
             Ok(())
-        },
+        }
         Node::Lt { l, r } => {
             from_node(w, *l)?;
             from_node(w, *r)?;
@@ -114,7 +114,7 @@ pub fn from_node<W: Write>(w: &mut W, node: Node) -> io::Result<()> {
             writeln!(w, "  movzb rax, al")?;
             writeln!(w, "  push rax")?;
             Ok(())
-        },
+        }
         Node::Le { l, r } => {
             from_node(w, *l)?;
             from_node(w, *r)?;
@@ -125,14 +125,17 @@ pub fn from_node<W: Write>(w: &mut W, node: Node) -> io::Result<()> {
             writeln!(w, "  movzb rax, al")?;
             writeln!(w, "  push rax")?;
             Ok(())
-        },
-        Node::Lvar { ident: _, offset: _ } => {
+        }
+        Node::Lvar {
+            ident: _,
+            offset: _,
+        } => {
             lval(w, node)?;
             writeln!(w, "  pop rax")?;
             writeln!(w, "  mov rax, [rax]")?;
             writeln!(w, "  push rax")?;
             Ok(())
-        },
+        }
         Node::Assign { l, r } => {
             lval(w, *l)?;
             from_node(w, *r)?;
@@ -141,6 +144,6 @@ pub fn from_node<W: Write>(w: &mut W, node: Node) -> io::Result<()> {
             writeln!(w, "  mov [rax], rdi")?;
             writeln!(w, "  push rdi")?;
             Ok(())
-        },
+        }
     }
 }

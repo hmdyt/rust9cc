@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Token {
     Num(u32),
     Identifier(char),
@@ -18,6 +18,7 @@ pub enum Token {
     GreaterThanOrEqual, // ">="
     Assign,             // "="
     Semicolon,          // ";"
+    EOF,
 }
 
 pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> {
@@ -42,12 +43,14 @@ pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> 
             Some('(') => tokens.push(Token::LeftParen),
             Some(')') => tokens.push(Token::RightParen),
             Some(';') => tokens.push(Token::Semicolon),
-            Some('=') => if let Some('=') = iter.peek() {
-                iter.next();
-                tokens.push(Token::Equal);
-            } else {
-                tokens.push(Token::Assign);
-            },
+            Some('=') => {
+                if let Some('=') = iter.peek() {
+                    iter.next();
+                    tokens.push(Token::Equal);
+                } else {
+                    tokens.push(Token::Assign);
+                }
+            }
             Some('!') => match iter.peek() {
                 Some('=') => {
                     iter.next();
@@ -82,6 +85,7 @@ pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> 
         }
     }
 
+    tokens.push(Token::EOF);
     tokens
 }
 
@@ -163,12 +167,12 @@ mod tests {
             Test {
                 name: "1",
                 input: "1",
-                expected: vec![Token::Num(1)],
+                expected: vec![Token::Num(1), Token::EOF],
             },
             Test {
                 name: "1 + 2",
                 input: "1 + 2",
-                expected: vec![Token::Num(1), Token::Plus, Token::Num(2)],
+                expected: vec![Token::Num(1), Token::Plus, Token::Num(2), Token::EOF],
             },
             Test {
                 name: "1 + 2 - 3",
@@ -179,6 +183,7 @@ mod tests {
                     Token::Num(2),
                     Token::Minus,
                     Token::Num(3),
+                    Token::EOF,
                 ],
             },
             Test {
@@ -192,6 +197,7 @@ mod tests {
                     Token::RightParen,
                     Token::Minus,
                     Token::Num(3),
+                    Token::EOF,
                 ],
             },
             Test {
@@ -209,6 +215,7 @@ mod tests {
                     Token::RightParen,
                     Token::Divide,
                     Token::Num(5),
+                    Token::EOF,
                 ],
             },
             Test {
@@ -228,6 +235,7 @@ mod tests {
                     Token::Num(6),
                     Token::NotEqual,
                     Token::Num(7),
+                    Token::EOF,
                 ],
             },
             Test {
@@ -239,6 +247,7 @@ mod tests {
                     Token::Identifier('b'),
                     Token::Minus,
                     Token::Identifier('c'),
+                    Token::EOF,
                 ],
             },
         ];
