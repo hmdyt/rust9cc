@@ -25,6 +25,11 @@ impl Token {
     pub fn new_identifer(ident: &str) -> Token {
         Token::Identifier(Box::new(ident.to_string()))
     }
+
+    fn is_identifier_char(c: char) -> bool {
+        // alphabet, number, underscore
+        c.is_alphabetic() || c.is_digit(10) || c == '_'
+    }
 }
 
 pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> {
@@ -83,8 +88,17 @@ pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> 
                     tokens.push(Token::GreaterThan);
                 }
             }
-            Some(alphabet) if 'a' <= alphabet && alphabet <= 'z' => {
-                tokens.push(Token::new_identifer(&alphabet.to_string()));
+            Some(a) if a.is_alphabetic() => {
+                let mut ident = vec![a];
+                while let Some(c) = iter.peek() {
+                    if Token::is_identifier_char(*c) {
+                        ident.push(*c);
+                        iter.next();
+                    } else {
+                        break;
+                    }
+                }
+                tokens.push(Token::new_identifer(&ident.iter().collect::<String>()));
             }
             Some(other) => panic!("予期しない文字です: {}", other),
             None => break,
@@ -246,13 +260,15 @@ mod tests {
             },
             Test {
                 name: "変数",
-                input: "a + b - c",
+                input: "abc+d123 - Aaa123bbb * あ",
                 expected: vec![
-                    Token::new_identifer("a"),
+                    Token::new_identifer("abc"),
                     Token::Plus,
-                    Token::new_identifer("b"),
+                    Token::new_identifer("d123"),
                     Token::Minus,
-                    Token::new_identifer("c"),
+                    Token::new_identifer("Aaa123bbb"),
+                    Token::Multiply,
+                    Token::new_identifer("あ"),
                     Token::EOF,
                 ],
             },

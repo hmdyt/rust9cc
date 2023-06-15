@@ -2,8 +2,10 @@ use std::iter::Peekable;
 
 use thiserror::Error;
 
-use crate::ast::node::{Node, Nodes, LocalVar};
+use crate::ast::node::{LocalVar, Node, Nodes};
 use crate::lexer::Token;
+
+const LOCAL_VAR_OFFSET: usize = 8;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum ParserError {
@@ -22,12 +24,14 @@ type Result<T> = std::result::Result<T, ParserError>;
 
 pub struct Parser<'a, T: Iterator<Item = &'a Token>> {
     tokens: Peekable<T>,
+    locals: Vec<LocalVar>,
 }
 
 impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
     pub fn new(tokens: T) -> Self {
         Parser {
             tokens: tokens.peekable(),
+            locals: Vec::new(),
         }
     }
 
@@ -54,6 +58,25 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
             Some(t) => Ok(t),
             None => Err(ParserError::NotEnoughTokens),
         }
+    }
+
+    fn get_local_var(&mut self, ident: &str) -> LocalVar {
+        // 既に同じ名前の変数がある場合はそれを返す
+        // なければ新しく作って返す
+        // FIXME: cloneが多い
+        // FIXME: identを探すのにO(n)かかる
+        for var in &self.locals {
+            if *var.ident == ident {
+                return (*var).clone();
+            }
+        }
+
+        let var = LocalVar {
+            ident: Box::new(ident.to_string()),
+            offset: (self.locals.len() + 1) * LOCAL_VAR_OFFSET,
+        };
+        self.locals.push(var);
+        self.locals.last().unwrap().clone()
     }
 
     // program = stmt*
@@ -230,10 +253,8 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
             }
             Token::Identifier(s) => {
                 self.consume(Token::Identifier(s.clone()))?;
-                Ok(Box::new(Node::Lvar(LocalVar {
-                    ident: s.clone(),
-                    offset: 123, // TODO: 直す
-                })))
+                let var = self.get_local_var(&s);
+                Ok(Box::new(Node::Lvar(var)))
             }
             Token::LeftParen => {
                 self.consume(Token::LeftParen)?;
@@ -340,21 +361,21 @@ mod tests {
                 success: true,
                 name: "identifier",
                 input: "a+z;",
-                expected: Some("(a[rbp-8] + z[rbp-208]); "),
+                expected: Some("(a[rbp-8] + z[rbp-16]); "),
                 expected_error: None,
             },
             Test {
                 success: true,
                 name: "assignment",
-                input: "a=1;",
-                expected: Some("(a[rbp-8] = 1); "),
+                input: "Ab123=1;",
+                expected: Some("(Ab123[rbp-8] = 1); "),
                 expected_error: None,
             },
             Test {
                 success: true,
                 name: "multi statements",
-                input: "a=1;b=2;c=3;",
-                expected: Some("(a[rbp-8] = 1); (b[rbp-16] = 2); (c[rbp-24] = 3); "),
+                input: "hoge=1;huga=2;piyo=3;",
+                expected: Some("(hoge[rbp-8] = 1); (huga[rbp-16] = 2); (piyo[rbp-24] = 3); "),
                 expected_error: None,
             },
             Test {

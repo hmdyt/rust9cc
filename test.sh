@@ -39,5 +39,6 @@ try 0 ' 1 > 2;'
 try 0 ' 1 >= 2;'
 try 1 '1+2 < 100 == -1 < 2*3;'
 try 12 'a = 11; a + 1;'
+try 12 'hoge=10;hoge+2;'
 
 echo OK
