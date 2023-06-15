@@ -18,6 +18,7 @@ pub enum Token {
     GreaterThanOrEqual, // ">="
     Assign,             // "="
     Semicolon,          // ";"
+    Return,
     EOF,
 }
 
@@ -26,7 +27,7 @@ impl Token {
         Token::Identifier(Box::new(ident.to_string()))
     }
 
-    fn is_identifier_char(c: char) -> bool {
+    fn is_almum(c: char) -> bool {
         // alphabet, number, underscore
         c.is_alphabetic() || c.is_digit(10) || c == '_'
     }
@@ -91,14 +92,19 @@ pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> 
             Some(a) if a.is_alphabetic() => {
                 let mut ident = vec![a];
                 while let Some(c) = iter.peek() {
-                    if Token::is_identifier_char(*c) {
+                    if Token::is_almum(*c) {
                         ident.push(*c);
                         iter.next();
                     } else {
                         break;
                     }
                 }
-                tokens.push(Token::new_identifer(&ident.iter().collect::<String>()));
+
+                let ident = ident.iter().collect::<String>();
+                match ident {
+                    s if s == "return" => tokens.push(Token::Return),
+                    _ => tokens.push(Token::new_identifer(&ident)),
+                }
             }
             Some(other) => panic!("予期しない文字です: {}", other),
             None => break,
@@ -269,6 +275,31 @@ mod tests {
                     Token::new_identifer("Aaa123bbb"),
                     Token::Multiply,
                     Token::new_identifer("あ"),
+                    Token::EOF,
+                ],
+            },
+            Test {
+                name: "return1",
+                input: "x return",
+                expected: vec![
+                    Token::new_identifer("x"),
+                    Token::Return,
+                    Token::EOF,
+                ],
+            },
+            Test {
+                name: "return2",
+                input: "returnx",
+                expected: vec![
+                    Token::new_identifer("returnx"),
+                    Token::EOF,
+                ],
+            },
+            Test {
+                name: "return3",
+                input: "xreturn",
+                expected: vec![
+                    Token::new_identifer("xreturn"),
                     Token::EOF,
                 ],
             },
