@@ -24,7 +24,7 @@ impl<W: Write> CodeGen<W> for AsmCodeGen<W> {
     fn prologue(&mut self) -> io::Result<()> {
         writeln!(self.w, "  push rbp")?;
         writeln!(self.w, "  mov rbp, rsp")?;
-        writeln!(self.w, "  sub rsp, 208")?;
+        writeln!(self.w, "  sub rsp, 208")?; // FIXME: 208 / 8 = 26個しか変数宣言できない
         Ok(())
     }
 
