@@ -3,7 +3,7 @@ use std::fmt;
 #[derive(Debug, PartialEq)]
 pub struct LocalVar {
     pub offset: usize,
-    pub ident: String,
+    pub ident: Box<String>,
 }
 
 #[derive(Debug, PartialEq)]

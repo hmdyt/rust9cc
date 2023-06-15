@@ -1,9 +1,9 @@
 use std::iter::Peekable;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Num(u32),
-    Identifier(char),
+    Identifier(Box<String>),
     Plus,
     Minus,
     Multiply,
@@ -19,6 +19,12 @@ pub enum Token {
     Assign,             // "="
     Semicolon,          // ";"
     EOF,
+}
+
+impl Token {
+    pub fn new_identifer(ident: &str) -> Token {
+        Token::Identifier(Box::new(ident.to_string()))
+    }
 }
 
 pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> {
@@ -78,7 +84,7 @@ pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> 
                 }
             }
             Some(alphabet) if 'a' <= alphabet && alphabet <= 'z' => {
-                tokens.push(Token::Identifier(alphabet));
+                tokens.push(Token::new_identifer(&alphabet.to_string()));
             }
             Some(other) => panic!("予期しない文字です: {}", other),
             None => break,
@@ -242,11 +248,11 @@ mod tests {
                 name: "変数",
                 input: "a + b - c",
                 expected: vec![
-                    Token::Identifier('a'),
+                    Token::new_identifer("a"),
                     Token::Plus,
-                    Token::Identifier('b'),
+                    Token::new_identifer("b"),
                     Token::Minus,
-                    Token::Identifier('c'),
+                    Token::new_identifer("c"),
                     Token::EOF,
                 ],
             },

@@ -43,7 +43,7 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
             }
             Some(t) => Err(ParserError::UnexpectedToken {
                 expected: vec![token],
-                actual: vec![**t],
+                actual: vec![(**t).clone()],
             }),
             None => Err(ParserError::NotEnoughTokens),
         }
@@ -219,16 +219,20 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
 
     // primary = num | ident | "(" expr ")"
     fn primary(&mut self) -> Result<Box<Node>> {
-        match *self.peek()? {
+        // FIXME: ここでcloneしているのが気持ち悪い
+        // peekがmutableなのでだめ
+        // Peekableの実装に乗っからずにtoken listを自前実装するのが良さそう
+        let next_token = self.peek()?.clone();
+        match next_token {
             Token::Num(n) => {
                 self.consume(Token::Num(n))?;
                 Ok(Box::new(Node::Num(n)))
             }
-            Token::Identifier(c) => {
-                self.consume(Token::Identifier(c))?;
+            Token::Identifier(s) => {
+                self.consume(Token::Identifier(s.clone()))?;
                 Ok(Box::new(Node::Lvar(LocalVar {
-                    ident: c.to_string(),
-                    offset: (c as usize - 'a' as usize + 1) * 8,
+                    ident: s.clone(),
+                    offset: 123, // TODO: 直す
                 })))
             }
             Token::LeftParen => {
@@ -238,8 +242,8 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
                 Ok(node)
             }
             _ => Err(ParserError::UnexpectedToken {
-                expected: vec![Token::Num(0), Token::Identifier('a'), Token::LeftParen],
-                actual: vec![*self.peek().unwrap()],
+                expected: vec![Token::Num(0), Token::new_identifer("a"), Token::LeftParen],
+                actual: vec![self.peek().unwrap().clone()],
             }),
         }
     }
@@ -359,7 +363,7 @@ mod tests {
                 input: "1+;",
                 expected: None,
                 expected_error: Some(ParserError::UnexpectedToken {
-                    expected: vec![Token::Num(0), Token::Identifier('a'), Token::LeftParen],
+                    expected: vec![Token::Num(0), Token::new_identifer("a"), Token::LeftParen],
                     actual: vec![Token::Semicolon],
                 }),
             },
@@ -369,7 +373,7 @@ mod tests {
                 input: "1+",
                 expected: None,
                 expected_error: Some(ParserError::UnexpectedToken {
-                    expected: vec![Token::Num(0), Token::Identifier('a'), Token::LeftParen],
+                    expected: vec![Token::Num(0), Token::new_identifer("a"), Token::LeftParen],
                     actual: vec![Token::EOF],
                 }),
             },
