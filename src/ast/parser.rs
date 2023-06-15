@@ -40,6 +40,8 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
     }
 
     fn consume(&mut self, token: Token) -> Result<()> {
+        // 引数にとるTokenが次のトークンと一致している時はトークンを消費してOk(())
+        // 一致していない時トークンを消費せずErr(ParserError::UnexpectedToken)を返す
         match self.tokens.peek() {
             Some(t) if **t == token => {
                 self.tokens.next();
@@ -88,11 +90,17 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
         Ok(Nodes(nodes))
     }
 
-    // stmt = expr ";"
+    // stmt = expr ";" | "return" expr ";"
     fn stmt(&mut self) -> Result<Box<Node>> {
-        let node = self.expr()?;
-        self.consume(Token::Semicolon)?;
-        Ok(node)
+        if let Ok(()) = self.consume(Token::Return) {
+            let node = Box::new(Node::Return{expr: self.expr()?});
+            self.consume(Token::Semicolon)?;
+            Ok(node)
+        } else {
+            let node = self.expr()?;
+            self.consume(Token::Semicolon)?;
+            Ok(node)
+        }
     }
 
     // expr = assign
@@ -376,6 +384,13 @@ mod tests {
                 name: "multi statements",
                 input: "hoge=1;huga=2;piyo=3;",
                 expected: Some("(hoge[rbp-8] = 1); (huga[rbp-16] = 2); (piyo[rbp-24] = 3); "),
+                expected_error: None,
+            },
+            Test {
+                success: true,
+                name: "return",
+                input: "returnx = 1;return returnx * 10;",
+                expected: Some("(returnx[rbp-8] = 1); (return (returnx[rbp-8] * 10)); "),
                 expected_error: None,
             },
             Test {

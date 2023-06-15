@@ -168,6 +168,14 @@ impl<W: Write> AsmCodeGen<W> {
                 writeln!(self.w, "  push rdi")?;
                 Ok(())
             }
+            Node::Return { expr } => {
+                self.from_node(*expr)?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  mov rsp, rbp")?;
+                writeln!(self.w, "  pop rbp")?;
+                writeln!(self.w, "  ret")?;
+                Ok(())
+            }
         }
     }
 }
