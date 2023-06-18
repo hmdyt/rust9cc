@@ -21,6 +21,8 @@ pub enum Token {
     Return,
     If,
     Else,
+    While,
+    For,
     EOF,
 }
 
@@ -107,6 +109,8 @@ pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> 
                     s if s == "return" => tokens.push(Token::Return),
                     s if s == "if" => tokens.push(Token::If),
                     s if s == "else" => tokens.push(Token::Else),
+                    s if s == "while" => tokens.push(Token::While),
+                    s if s == "for" => tokens.push(Token::For),
                     _ => tokens.push(Token::new_identifer(&ident)),
                 }
             }
@@ -285,27 +289,17 @@ mod tests {
             Test {
                 name: "return1",
                 input: "x return",
-                expected: vec![
-                    Token::new_identifer("x"),
-                    Token::Return,
-                    Token::EOF,
-                ],
+                expected: vec![Token::new_identifer("x"), Token::Return, Token::EOF],
             },
             Test {
                 name: "return2",
                 input: "returnx",
-                expected: vec![
-                    Token::new_identifer("returnx"),
-                    Token::EOF,
-                ],
+                expected: vec![Token::new_identifer("returnx"), Token::EOF],
             },
             Test {
                 name: "return3",
                 input: "xreturn",
-                expected: vec![
-                    Token::new_identifer("xreturn"),
-                    Token::EOF,
-                ],
+                expected: vec![Token::new_identifer("xreturn"), Token::EOF],
             },
             Test {
                 name: "if else",
@@ -323,6 +317,48 @@ mod tests {
                     Token::Else,
                     Token::Return,
                     Token::Num(2),
+                    Token::Semicolon,
+                    Token::EOF,
+                ],
+            },
+            Test {
+                name: "while",
+                input: "while (x < 1) return 1;",
+                expected: vec![
+                    Token::While,
+                    Token::LeftParen,
+                    Token::new_identifer("x"),
+                    Token::LessThan,
+                    Token::Num(1),
+                    Token::RightParen,
+                    Token::Return,
+                    Token::Num(1),
+                    Token::Semicolon,
+                    Token::EOF,
+                ],
+            },
+            Test {
+                name: "for",
+                input: "for (i = 0; i < 10; i = i + 1) return i;",
+                expected: vec![
+                    Token::For,
+                    Token::LeftParen,
+                    Token::new_identifer("i"),
+                    Token::Assign,
+                    Token::Num(0),
+                    Token::Semicolon,
+                    Token::new_identifer("i"),
+                    Token::LessThan,
+                    Token::Num(10),
+                    Token::Semicolon,
+                    Token::new_identifer("i"),
+                    Token::Assign,
+                    Token::new_identifer("i"),
+                    Token::Plus,
+                    Token::Num(1),
+                    Token::RightParen,
+                    Token::Return,
+                    Token::new_identifer("i"),
                     Token::Semicolon,
                     Token::EOF,
                 ],

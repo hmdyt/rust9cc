@@ -90,15 +90,17 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
         Ok(Nodes(nodes))
     }
 
-    // stmt = expr ";" 
-    //      | "return" expr ";" 
+    // stmt = expr ";"
+    //      | "return" expr ";"
     //      | "if" "(" expr ")" stmt ("else" stmt)?
+    //      | "while" "(" expr ")" stmt
+    //      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
     fn stmt(&mut self) -> Result<Box<Node>> {
         let next_token = self.peek()?.clone();
         match next_token {
             Token::Return => {
                 self.consume(Token::Return)?;
-                let node = Box::new(Node::Return{expr: self.expr()?});
+                let node = Box::new(Node::Return { expr: self.expr()? });
                 self.consume(Token::Semicolon)?;
                 Ok(node)
             }
@@ -113,10 +115,50 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
                 } else {
                     None
                 };
-                Ok(Box::new(Node::If {
+                Ok(Box::new(Node::If { cond, then, els }))
+            }
+            Token::While => {
+                self.consume(Token::While)?;
+                self.consume(Token::LeftParen)?;
+                let cond = self.expr()?;
+                self.consume(Token::RightParen)?;
+                let then = self.stmt()?;
+                Ok(Box::new(Node::While { cond, then }))
+            }
+            Token::For => {
+                self.consume(Token::For)?;
+                self.consume(Token::LeftParen)?;
+
+                // expr? ";"
+                let init = if self.consume(Token::Semicolon).is_ok() {
+                    None
+                } else {
+                    Some(self.expr()?)
+                };
+                self.consume(Token::Semicolon)?;
+
+                // expr? ";"
+                let cond = if self.consume(Token::Semicolon).is_ok() {
+                    None
+                } else {
+                    Some(self.expr()?)
+                };
+                self.consume(Token::Semicolon)?;
+
+                // expr? ")"
+                let step = if self.consume(Token::RightParen).is_ok() {
+                    None
+                } else {
+                    Some(self.expr()?)
+                };
+                self.consume(Token::RightParen)?;
+
+                let then = self.stmt()?;
+                Ok(Box::new(Node::For {
+                    init,
                     cond,
+                    step,
                     then,
-                    els,
                 }))
             }
             _ => {
@@ -429,6 +471,20 @@ mod tests {
                 name: "if else",
                 input: "x=1;if (x > 1) return 10*x; else return 0;",
                 expected: Some("(x[rbp-8] = 1); (if ((1 < x[rbp-8])) (return (10 * x[rbp-8])) else (return 0)); "),
+                expected_error: None,
+            },
+            Test{
+                success: true,
+                name: "while",
+                input: "x=1;while (x < 10) x = x + 1;",
+                expected: Some("(x[rbp-8] = 1); (while ((x[rbp-8] < 10)) (x[rbp-8] = (x[rbp-8] + 1))); "),
+                expected_error: None,
+            },
+            Test {
+                success: true,
+                name: "for",
+                input: "x=1;for (i=0;i<10;i=i+1) x = x + 1;",
+                expected: Some("(x[rbp-8] = 1); (for ((i[rbp-16] = 0); (i[rbp-16] < 10); (i[rbp-16] = (i[rbp-16] + 1))) (x[rbp-8] = (x[rbp-8] + 1))); "),
                 expected_error: None,
             },
             Test {

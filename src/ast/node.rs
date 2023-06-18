@@ -25,6 +25,16 @@ pub enum Node {
         then: Box<Node>,
         els: Option<Box<Node>>,
     },
+    While {
+        cond: Box<Node>,
+        then: Box<Node>,
+    },
+    For {
+        init: Option<Box<Node>>,
+        cond: Option<Box<Node>>,
+        step: Option<Box<Node>>,
+        then: Box<Node>,
+    },
 }
 
 impl fmt::Display for Node {
@@ -48,7 +58,16 @@ impl fmt::Display for Node {
                 } else {
                     write!(f, "(if ({}) {})", cond, then)
                 }
-            }
+            },
+            Node::While { cond, then } => write!(f, "(while ({}) {})", cond, then),
+            Node::For { init, cond, step, then } => {
+                write!(f, "(for ({}; {}; {}) {})",
+                    init.as_ref().map(|n| n.to_string()).unwrap_or("".to_string()),
+                    cond.as_ref().map(|n| n.to_string()).unwrap_or("".to_string()),
+                    step.as_ref().map(|n| n.to_string()).unwrap_or("".to_string()),
+                    then,
+                )
+            },
         }
     }
 }

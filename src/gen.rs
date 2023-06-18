@@ -1,4 +1,5 @@
-use std::io::{self, Write};
+use core::panic;
+use std::{io::{self, Write}};
 
 use crate::ast::node::{LocalVar, Node, Nodes};
 
@@ -47,7 +48,10 @@ impl<W: Write> CodeGen<W> for AsmCodeGen<W> {
 
 impl<W: Write> AsmCodeGen<W> {
     pub fn new(w: W) -> Self {
-        Self { w, label_index_counter: 0 }
+        Self {
+            w,
+            label_index_counter: 0,
+        }
     }
 
     fn lval(&mut self, node: Node) -> io::Result<()> {
@@ -206,6 +210,38 @@ impl<W: Write> AsmCodeGen<W> {
                     writeln!(self.w, ".Lend{}:", label_index)?;
                     Ok(())
                 }
+            }
+            Node::While { cond, then } => {
+                let label_index = self.label_index();
+                writeln!(self.w, ".Lbegin{}:", label_index)?;
+                self.from_node(*cond)?;
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  cmp rax, 0")?;
+                writeln!(self.w, "  je  .Lend{}", label_index)?;
+                self.from_node(*then)?;
+                writeln!(self.w, "  jmp .Lbegin{}", label_index)?;
+                writeln!(self.w, ".Lend{}:", label_index)?;
+                Ok(())
+            }
+            Node::For { init, cond, step, then } => {
+                if let Some(init) = init {
+                    self.from_node(*init)?;
+                }
+                let label_index = self.label_index();
+                writeln!(self.w, ".Lbegin{}:", label_index)?;
+                if let Some(cond) = cond {
+                    self.from_node(*cond)?;
+                }
+                writeln!(self.w, "  pop rax")?;
+                writeln!(self.w, "  cmp rax, 0")?;
+                writeln!(self.w, "  je  .Lend{}", label_index)?;
+                self.from_node(*then)?;
+                if let Some(step) = step {
+                    self.from_node(*step)?;
+                }
+                writeln!(self.w, "  jmp .Lbegin{}", label_index)?;
+                writeln!(self.w, ".Lend{}:", label_index)?;
+                Ok(())
             }
         }
     }
