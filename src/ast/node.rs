@@ -20,6 +20,11 @@ pub enum Node {
     Eq { l: Box<Node>, r: Box<Node> },
     Ne { l: Box<Node>, r: Box<Node> },
     Return { expr: Box<Node> },
+    If {
+        cond: Box<Node>,
+        then: Box<Node>,
+        els: Option<Box<Node>>,
+    },
 }
 
 impl fmt::Display for Node {
@@ -37,6 +42,13 @@ impl fmt::Display for Node {
             Node::Eq { l, r } => write!(f, "({} == {})", l, r),
             Node::Ne { l, r } => write!(f, "({} != {})", l, r),
             Node::Return { expr } => write!(f, "(return {})", expr),
+            Node::If { cond, then, els } => {
+                if let Some(els) = els {
+                    write!(f, "(if ({}) {} else {})", cond, then, els)
+                } else {
+                    write!(f, "(if ({}) {})", cond, then)
+                }
+            }
         }
     }
 }

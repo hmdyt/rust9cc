@@ -11,6 +11,7 @@ pub trait CodeGen<W: Write> {
 
 pub struct AsmCodeGen<W: Write> {
     w: W,
+    label_index_counter: usize,
 }
 
 impl<W: Write> CodeGen<W> for AsmCodeGen<W> {
@@ -46,7 +47,7 @@ impl<W: Write> CodeGen<W> for AsmCodeGen<W> {
 
 impl<W: Write> AsmCodeGen<W> {
     pub fn new(w: W) -> Self {
-        Self { w }
+        Self { w, label_index_counter: 0 }
     }
 
     fn lval(&mut self, node: Node) -> io::Result<()> {
@@ -58,6 +59,12 @@ impl<W: Write> AsmCodeGen<W> {
         } else {
             panic!("代入の左辺値が変数ではありません");
         }
+    }
+
+    fn label_index(&mut self) -> Box<String> {
+        let label = format!(".L{}", self.label_index_counter);
+        self.label_index_counter += 1;
+        Box::new(label)
     }
 
     fn from_node(&mut self, node: Node) -> io::Result<()> {
@@ -175,6 +182,30 @@ impl<W: Write> AsmCodeGen<W> {
                 writeln!(self.w, "  pop rbp")?;
                 writeln!(self.w, "  ret")?;
                 Ok(())
+            }
+            Node::If { cond, then, els } => {
+                if let Some(els) = els {
+                    let label_index = self.label_index();
+                    self.from_node(*cond)?;
+                    writeln!(self.w, "  pop rax")?;
+                    writeln!(self.w, "  cmp rax, 0")?;
+                    writeln!(self.w, "  je  .Lelse{}", label_index)?;
+                    self.from_node(*then)?;
+                    writeln!(self.w, "  jmp .Lend{}", label_index)?;
+                    writeln!(self.w, ".Lelse{}:", label_index)?;
+                    self.from_node(*els)?;
+                    writeln!(self.w, ".Lend{}:", label_index)?;
+                    Ok(())
+                } else {
+                    let label_index = self.label_index();
+                    self.from_node(*cond)?;
+                    writeln!(self.w, "  pop rax")?;
+                    writeln!(self.w, "  cmp rax, 0")?;
+                    writeln!(self.w, "  je  .Lend{}", label_index)?;
+                    self.from_node(*then)?;
+                    writeln!(self.w, ".Lend{}:", label_index)?;
+                    Ok(())
+                }
             }
         }
     }

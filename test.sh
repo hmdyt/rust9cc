@@ -41,5 +41,9 @@ try 1 '1+2 < 100 == -1 < 2*3;'
 try 12 'a = 11; a + 1;'
 try 12 'hoge=10;hoge+2;'
 try 14 'return 14; 1;'
+try 7 'if (1 < 2) return 7; return 14;'
+try 14 'if (1 > 2) return 7; return 14;'
+try 7 'if (1 < 2) return 7;else return 14;'
+try 14 'if (1 > 2) return 7;else return 14; return 0;'
 
 echo OK

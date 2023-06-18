@@ -19,6 +19,8 @@ pub enum Token {
     Assign,             // "="
     Semicolon,          // ";"
     Return,
+    If,
+    Else,
     EOF,
 }
 
@@ -103,6 +105,8 @@ pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> 
                 let ident = ident.iter().collect::<String>();
                 match ident {
                     s if s == "return" => tokens.push(Token::Return),
+                    s if s == "if" => tokens.push(Token::If),
+                    s if s == "else" => tokens.push(Token::Else),
                     _ => tokens.push(Token::new_identifer(&ident)),
                 }
             }
@@ -300,6 +304,26 @@ mod tests {
                 input: "xreturn",
                 expected: vec![
                     Token::new_identifer("xreturn"),
+                    Token::EOF,
+                ],
+            },
+            Test {
+                name: "if else",
+                input: "if (x < 1) return 1; else return 2;",
+                expected: vec![
+                    Token::If,
+                    Token::LeftParen,
+                    Token::new_identifer("x"),
+                    Token::LessThan,
+                    Token::Num(1),
+                    Token::RightParen,
+                    Token::Return,
+                    Token::Num(1),
+                    Token::Semicolon,
+                    Token::Else,
+                    Token::Return,
+                    Token::Num(2),
+                    Token::Semicolon,
                     Token::EOF,
                 ],
             },

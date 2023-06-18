@@ -90,16 +90,40 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
         Ok(Nodes(nodes))
     }
 
-    // stmt = expr ";" | "return" expr ";"
+    // stmt = expr ";" 
+    //      | "return" expr ";" 
+    //      | "if" "(" expr ")" stmt ("else" stmt)?
     fn stmt(&mut self) -> Result<Box<Node>> {
-        if let Ok(()) = self.consume(Token::Return) {
-            let node = Box::new(Node::Return{expr: self.expr()?});
-            self.consume(Token::Semicolon)?;
-            Ok(node)
-        } else {
-            let node = self.expr()?;
-            self.consume(Token::Semicolon)?;
-            Ok(node)
+        let next_token = self.peek()?.clone();
+        match next_token {
+            Token::Return => {
+                self.consume(Token::Return)?;
+                let node = Box::new(Node::Return{expr: self.expr()?});
+                self.consume(Token::Semicolon)?;
+                Ok(node)
+            }
+            Token::If => {
+                self.consume(Token::If)?;
+                self.consume(Token::LeftParen)?;
+                let cond = self.expr()?;
+                self.consume(Token::RightParen)?;
+                let then = self.stmt()?;
+                let els = if self.consume(Token::Else).is_ok() {
+                    Some(self.stmt()?)
+                } else {
+                    None
+                };
+                Ok(Box::new(Node::If {
+                    cond,
+                    then,
+                    els,
+                }))
+            }
+            _ => {
+                let node = self.expr()?;
+                self.consume(Token::Semicolon)?;
+                Ok(node)
+            }
         }
     }
 
@@ -391,6 +415,20 @@ mod tests {
                 name: "return",
                 input: "returnx = 1;return returnx * 10;",
                 expected: Some("(returnx[rbp-8] = 1); (return (returnx[rbp-8] * 10)); "),
+                expected_error: None,
+            },
+            Test {
+                success: true,
+                name: "if",
+                input: "x=1; if (x > 1) return 10*x;",
+                expected: Some("(x[rbp-8] = 1); (if ((1 < x[rbp-8])) (return (10 * x[rbp-8]))); "),
+                expected_error: None,
+            },
+            Test {
+                success: true,
+                name: "if else",
+                input: "x=1;if (x > 1) return 10*x; else return 0;",
+                expected: Some("(x[rbp-8] = 1); (if ((1 < x[rbp-8])) (return (10 * x[rbp-8])) else (return 0)); "),
                 expected_error: None,
             },
             Test {
