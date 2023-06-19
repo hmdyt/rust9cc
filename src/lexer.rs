@@ -10,6 +10,8 @@ pub enum Token {
     Divide,
     LeftParen,          // "("
     RightParen,         // ")"
+    LeftBrace,          // "{"
+    RightBrace,         // "}"
     Equal,              // "=="
     NotEqual,           // "!="
     LessThan,           // "<"
@@ -58,6 +60,8 @@ pub fn tokenize<T: Iterator<Item = char>>(iter: &mut Peekable<T>) -> Vec<Token> 
             Some('/') => tokens.push(Token::Divide),
             Some('(') => tokens.push(Token::LeftParen),
             Some(')') => tokens.push(Token::RightParen),
+            Some('{') => tokens.push(Token::LeftBrace),
+            Some('}') => tokens.push(Token::RightBrace),
             Some(';') => tokens.push(Token::Semicolon),
             Some('=') => {
                 if let Some('=') = iter.peek() {
@@ -363,6 +367,22 @@ mod tests {
                     Token::EOF,
                 ],
             },
+            Test {
+                name: "block",
+                input: "{ x = 1; return x; }",
+                expected: vec![
+                    Token::LeftBrace,
+                    Token::new_identifer("x"),
+                    Token::Assign,
+                    Token::Num(1),
+                    Token::Semicolon,
+                    Token::Return,
+                    Token::new_identifer("x"),
+                    Token::Semicolon,
+                    Token::RightBrace,
+                    Token::EOF,
+                ],
+            }
         ];
 
         for t in tests {

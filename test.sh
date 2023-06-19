@@ -47,5 +47,8 @@ try 7 'if (1 < 2) return 7;else return 14;'
 try 14 'if (1 > 2) return 7;else return 14; return 0;'
 try 13 'x = 0; while (x < 13) x = x + 1; return x;'
 try 10 'x = 0; for (i = 0; i < 10; i = i + 1) x = x + 1; return x;'
+try 10 'if (1 < 2) {return 10;} else {return 20;}'
+try 20 'x = 0; i = 0; while (i < 10) {x = x + 2; i = i + 1;} return x;'
+try 10 'x = 0; for (i = 0; i < 10; i = i + 1) {x = x + 1;} return x;'
 
 echo OK

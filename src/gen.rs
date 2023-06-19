@@ -243,6 +243,13 @@ impl<W: Write> AsmCodeGen<W> {
                 writeln!(self.w, ".Lend{}:", label_index)?;
                 Ok(())
             }
+            Node::Block { stmts } => {
+                for stmt in stmts {
+                    self.from_node(*stmt)?;
+                    writeln!(self.w, "  pop rax")?;
+                }
+                Ok(())
+            }
         }
     }
 }

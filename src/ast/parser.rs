@@ -90,14 +90,23 @@ impl<'a, T: Iterator<Item = &'a Token>> Parser<'a, T> {
         Ok(Nodes(nodes))
     }
 
-    // stmt = expr ";"
+    // stmt = "{" stmt* "}"
     //      | "return" expr ";"
     //      | "if" "(" expr ")" stmt ("else" stmt)?
     //      | "while" "(" expr ")" stmt
     //      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+    //      | expr ";"
     fn stmt(&mut self) -> Result<Box<Node>> {
         let next_token = self.peek()?.clone();
         match next_token {
+            Token::LeftBrace => {
+                self.consume(Token::LeftBrace)?;
+                let mut stmts = Vec::new();
+                while self.consume(Token::RightBrace).is_err() {
+                    stmts.push(self.stmt()?);
+                }
+                Ok(Box::new(Node::Block { stmts }))
+            }
             Token::Return => {
                 self.consume(Token::Return)?;
                 let node = Box::new(Node::Return { expr: self.expr()? });
@@ -480,11 +489,32 @@ mod tests {
                 expected: Some("(x[rbp-8] = 1); (while ((x[rbp-8] < 10)) (x[rbp-8] = (x[rbp-8] + 1))); "),
                 expected_error: None,
             },
+            Test{
+                success: true,
+                name: "while with block",
+                input: "x=1;while (x < 10) {x = x + 1; 1 + 2;}",
+                expected: Some("(x[rbp-8] = 1); (while ((x[rbp-8] < 10)) { (x[rbp-8] = (x[rbp-8] + 1)); (1 + 2); }); "),
+                expected_error: None,
+            },
             Test {
                 success: true,
                 name: "for",
                 input: "x=1;for (i=0;i<10;i=i+1) x = x + 1;",
                 expected: Some("(x[rbp-8] = 1); (for ((i[rbp-16] = 0); (i[rbp-16] < 10); (i[rbp-16] = (i[rbp-16] + 1))) (x[rbp-8] = (x[rbp-8] + 1))); "),
+                expected_error: None,
+            },
+            Test {
+                success: true,
+                name: "for with block",
+                input: "x=1;for (i=0;i<10;i=i+1) {x = x + 1; 1 + 2;}",
+                expected: Some("(x[rbp-8] = 1); (for ((i[rbp-16] = 0); (i[rbp-16] < 10); (i[rbp-16] = (i[rbp-16] + 1))) { (x[rbp-8] = (x[rbp-8] + 1)); (1 + 2); }); "),
+                expected_error: None,
+            },
+            Test {
+                success: true,
+                name: "block",
+                input: "{x=1;y=2;z=3;}",
+                expected: Some("{ (x[rbp-8] = 1); (y[rbp-16] = 2); (z[rbp-24] = 3); }; "),
                 expected_error: None,
             },
             Test {

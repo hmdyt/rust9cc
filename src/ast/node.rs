@@ -35,6 +35,9 @@ pub enum Node {
         step: Option<Box<Node>>,
         then: Box<Node>,
     },
+    Block {
+        stmts: Vec<Box<Node>>,
+    },
 }
 
 impl fmt::Display for Node {
@@ -67,6 +70,13 @@ impl fmt::Display for Node {
                     step.as_ref().map(|n| n.to_string()).unwrap_or("".to_string()),
                     then,
                 )
+            },
+            Node::Block { stmts } => {
+                write!(f, "{{ ")?;
+                for stmt in stmts.iter() {
+                    write!(f, "{}; ", **stmt)?;
+                }
+                write!(f, "}}")
             },
         }
     }
